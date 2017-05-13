@@ -78,7 +78,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             float x = event.values[0];
             float y = event.values[1];
             float z = event.values[2];
-            float m = 0;
+            double m = Math.sqrt(Math.pow( x, 2.0) + Math.pow(y, 2.0) + Math.pow(z, 2.0));
 
             float speed = 0;
 
@@ -89,7 +89,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             ourGraph.addPointX(timeChanged, x*SCALE_FACTOR + ourGraph.getHeight()/2);
             ourGraph.addPointY(timeChanged, y*SCALE_FACTOR + ourGraph.getHeight()/2);
             ourGraph.addPointZ(timeChanged, z*SCALE_FACTOR + ourGraph.getHeight()/2);
-            ourGraph.addPointM(timeChanged, m*SCALE_FACTOR + ourGraph.getHeight()/2);
+            ourGraph.addPointM(timeChanged, (float) m*SCALE_FACTOR + ourGraph.getHeight()/2);
 
             ourGraph.invalidate();
 
