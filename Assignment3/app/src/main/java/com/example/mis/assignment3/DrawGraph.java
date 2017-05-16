@@ -7,6 +7,8 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.util.AttributeSet;
 import android.view.View;
+import android.widget.HorizontalScrollView;
+import android.widget.ScrollView;
 
 /**
  * Created by annika on 13.05.17.
@@ -14,7 +16,7 @@ import android.view.View;
 
 
 
-public class DrawGraph extends View {
+public class DrawGraph extends HorizontalScrollView {
     Path pathX = new Path();
     Path pathY = new Path();
     Path pathZ = new Path();
@@ -41,13 +43,11 @@ public class DrawGraph extends View {
     }
 
     private void init(Context context) {
-        pathM.moveTo(400, 400);
-        pathX.moveTo(800, 800);
-        pathY.moveTo(800, 800);
-        pathZ.moveTo(800, 800);
 
-        pathM.lineTo(800, 800);
-
+        pathM.moveTo(0, this.getHeight()/2);
+        pathX.moveTo(0, this.getHeight()/2);
+        pathY.moveTo(0, this.getHeight()/2);
+        pathZ.moveTo(0, this.getHeight()/2);
 
         paintM.setColor(Color.WHITE);
         paintX.setColor(Color.RED);

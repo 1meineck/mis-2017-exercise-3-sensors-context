@@ -20,24 +20,30 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
-public class MainActivity extends AppCompatActivity implements SensorEventListener{
+import java.lang.reflect.Array;
+import java.util.Arrays;
+
+public class MainActivity extends AppCompatActivity implements SensorEventListener {
 
 
     private static final int SHAKE_THRESHOLD = 600;
+    DrawGraph ourGraph;
     private TextView textView;
     private Button startStop;
     private boolean started = false;
     private SensorManager mSensorManager;
     private Sensor mSensor;
-    private  long curTime;
+    private long curTime;
     private long lastUpdate = 0;
-    private float last_x, last_y, last_z, last_m;
     private int timeChanged = 0;
-
-    private int SCALE_FACTOR = 50;
-
-    DrawGraph ourGraph;
-
+    private double[] xArray;
+    private double[] yArray;
+    private double[] array;
+    private int arrayCounter = 0;
+    private int SCALE_FACTOR = 20;
+    private int FFT_WINDOW = 64;
+    private FFT mFFT;
+    private DrawFFT ourFFT;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,11 +51,26 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         setContentView(R.layout.activity_main);
 
+        startStop = (Button) findViewById(R.id.startStop);
+
         ourGraph = (DrawGraph) findViewById(R.id.drawGraph);
-        ourGraph.setBackgroundColor(Color.DKGRAY);
+        ourGraph.setBackgroundColor(Color.GRAY);
+
+        ourFFT = (DrawFFT) findViewById(R.id.drawFFT);
+        ourFFT.setBackgroundColor(Color.GRAY);
 
         mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         mSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+
+        mFFT = new FFT(2 * (int) FFT_WINDOW);
+
+        array = new double[2 * FFT_WINDOW];
+        Arrays.fill(array, 0);
+
+        xArray = new double[2 * FFT_WINDOW];
+        yArray = new double[2 * FFT_WINDOW];
+        Arrays.fill(yArray, 0);
+
 
        /* startStop.setOnClickListener(new View.OnClickListener(){
             public void onClick(View v){
@@ -64,7 +85,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 }
             }
         });*/
-        mSensorManager.registerListener(this, mSensor, mSensorManager.SENSOR_DELAY_NORMAL);
+        mSensorManager.registerListener(this, mSensor, mSensorManager.SENSOR_DELAY_FASTEST);
 
     }
 
@@ -78,7 +99,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             float x = event.values[0];
             float y = event.values[1];
             float z = event.values[2];
-            double m = Math.sqrt(Math.pow( x, 2.0) + Math.pow(y, 2.0) + Math.pow(z, 2.0));
+            double m = Math.sqrt(Math.pow(x, 2.0) + Math.pow(y, 2.0) + Math.pow(z, 2.0));
 
             float speed = 0;
 
@@ -86,45 +107,39 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
             timeChanged = timeChanged + 2;
 
-            ourGraph.addPointX(timeChanged, x*SCALE_FACTOR + ourGraph.getHeight()/2);
-            ourGraph.addPointY(timeChanged, y*SCALE_FACTOR + ourGraph.getHeight()/2);
-            ourGraph.addPointZ(timeChanged, z*SCALE_FACTOR + ourGraph.getHeight()/2);
-            ourGraph.addPointM(timeChanged, (float) m*SCALE_FACTOR + ourGraph.getHeight()/2);
-
+            //Drawing of untransformed acceleration data
+            ourGraph.addPointX(timeChanged, x * SCALE_FACTOR + ourGraph.getHeight() / 2 - 100);
+            ourGraph.addPointY(timeChanged, y * SCALE_FACTOR + ourGraph.getHeight() / 2 - 100);
+            ourGraph.addPointZ(timeChanged, z * SCALE_FACTOR + ourGraph.getHeight() / 2 - 100);
+            ourGraph.addPointM(timeChanged, (float) m * SCALE_FACTOR + ourGraph.getHeight() / 2 - 100);
             ourGraph.invalidate();
 
-         //   setContentView(ourGraph);
+            if (arrayCounter < 2 * FFT_WINDOW) {
+                xArray[arrayCounter] = m;
+                arrayCounter = arrayCounter + 1;
+                startStop.setText(""+arrayCounter);
 
-            if ((curTime -lastUpdate) > 100) {
-                long diffTime = (curTime - lastUpdate);
-                lastUpdate = curTime;
-
-                speed = Math.abs(x + y + z - last_x - last_y - last_z)/diffTime *10000;
-
-                if (speed > SHAKE_THRESHOLD) {
-
-                }
-
-
-
-
-
-            last_x = x;
-            last_y = y;
-            last_z = z;
-
+            } else if (arrayCounter == 2 * FFT_WINDOW) {
+                //float lastX = (float) array[array.length-1];
+                array = fftCalculator(xArray, yArray);
+                ourFFT.setPoints(array);
+                ourFFT.invalidate();
+                arrayCounter = 0;
             }
+
+
 
         }
 
     }
+
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
 
     }
 
-    public void onPause(){
+    public void onPause() {
         super.onPause();
         mSensorManager.unregisterListener(this);
     }
@@ -133,4 +148,17 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         super.onResume();
         mSensorManager.registerListener(this, mSensor, mSensorManager.SENSOR_DELAY_NORMAL);
     }
+
+    // inspired by J Wang(Nov 4 '15) https://stackoverflow.com/questions/9272232/fft-library-in-android-sdk)
+    public double[] fftCalculator(double[] x, double[] y){
+        if (x.length != y.length) return null;
+        FFT fft = new FFT(x.length);
+        fft.fft(x, y);
+        double[] fftMag = new double[x.length];
+        for (int i = 1; i<x.length; i++){
+            fftMag[i] = Math.sqrt(Math.pow(x[i], 2) + Math.pow(x[i], 2));
+        }
+        return fftMag;
+    }
+
 }

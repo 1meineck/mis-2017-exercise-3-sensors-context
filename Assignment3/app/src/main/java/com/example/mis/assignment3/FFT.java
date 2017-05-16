@@ -1,3 +1,4 @@
+package com.example.mis.assignment3;
 /*
  *  Copyright 2006-2007 Columbia University.
  *
@@ -26,15 +27,22 @@
  *  https://www.ee.columbia.edu/~ronw/code/MEAPsoft/doc/html/FFT_8java-source.html
  */
 
+import java.util.Arrays;
+
 public class FFT {
 
   int n, m;
+  private double[] array;
+    private int FFT_WINDOW;
 
-  // Lookup tables. Only need to recompute when size of FFT changes.
+
+    // Lookup tables. Only need to recompute when size of FFT changes.
   double[] cos;
   double[] sin;
 
   public FFT(int n) {
+
+
       this.n = n;
       this.m = (int) (Math.log(n) / Math.log(2));
 
