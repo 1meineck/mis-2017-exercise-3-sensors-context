@@ -11,7 +11,7 @@ import android.widget.HorizontalScrollView;
 import android.widget.ScrollView;
 
 /**
- * Created by annika on 13.05.17.
+ * This class visualizes the live accelerometer data (x, y, z, m) as four lines on a canvas
  */
 
 

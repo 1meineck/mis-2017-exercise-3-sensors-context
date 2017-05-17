@@ -2,48 +2,53 @@ package com.example.mis.assignment3;
 
 
 import android.content.Context;
-import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.Paint;
-import android.graphics.Path;
-import android.graphics.Point;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
-import android.support.constraint.ConstraintLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.text.Layout;
-import android.view.Display;
 import android.view.View;
 import android.widget.Button;
+import android.widget.SeekBar;
 import android.widget.TextView;
 
-import java.lang.reflect.Array;
 import java.util.Arrays;
 
 public class MainActivity extends AppCompatActivity implements SensorEventListener {
 
 
-    private static final int SHAKE_THRESHOLD = 600;
-    DrawGraph ourGraph;
-    private TextView textView;
-    private Button startStop;
-    private boolean started = false;
+    //  View that draws our raw accelerometer data (x, y, z, m)
+    private DrawGraph ourGraph;
+    // View that draws our fft data
+    private DrawFFT ourFFT;
+
+    private Button startStop; //ToDo: delete Button! entirely (main & xml)
+
+    // SeekBar to set the fft window size and sample rate
+    private SeekBar seekBarWindowSize;
+    private SeekBar seekBarSampleRate;
+    private TextView textWindowSize;
+    private TextView textSampleRate;
+
     private SensorManager mSensorManager;
     private Sensor mSensor;
+
+
     private long curTime;
     private long lastUpdate = 0;
-    private int timeChanged = 0;
-    private double[] xArray;
-    private double[] yArray;
-    private double[] array;
+    private int timeChanged = 0; //Counter used to display graphs
+
+    private double[] xArray; // Array that holds m -> real part of fft
+    private double[] yArray; // irreal part of fft
+    private double[] array;  // array that holds our fft data
+
     private int arrayCounter = 0;
     private int SCALE_FACTOR = 20;
-    private int FFT_WINDOW = 64;
-    private FFT mFFT;
-    private DrawFFT ourFFT;
+    private int FFT_WINDOW_SIZE = 16; // initial FFT Window Size
+    private int FFT_SAMPLE_RATE = 100; // initial FFT Sample Rate
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,7 +56,22 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         setContentView(R.layout.activity_main);
 
-        startStop = (Button) findViewById(R.id.startStop);
+        startStop = (Button) findViewById(R.id.startStop); // ToDo delete
+
+        // Instantiating everything
+        seekBarSampleRate = (SeekBar) findViewById(R.id.seekBarSampleRate);
+        seekBarSampleRate.setMax(99);
+
+        seekBarWindowSize = (SeekBar) findViewById(R.id.seekBarWindowSize);
+        seekBarWindowSize.setMax(6);
+
+        textSampleRate = (TextView) findViewById(R.id.textSampleRate);
+        textSampleRate.setText("FFT Sample Rate: " + FFT_SAMPLE_RATE);
+
+        textWindowSize = (TextView) findViewById(R.id.textWindowSize);
+        textWindowSize.setText("FFT Window Size: " + FFT_WINDOW_SIZE);
+
+        curTime = System.currentTimeMillis();
 
         ourGraph = (DrawGraph) findViewById(R.id.drawGraph);
         ourGraph.setBackgroundColor(Color.GRAY);
@@ -62,35 +82,91 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         mSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
 
-        mFFT = new FFT(2 * (int) FFT_WINDOW);
-
-        array = new double[2 * FFT_WINDOW];
+        array = new double[FFT_WINDOW_SIZE];
         Arrays.fill(array, 0);
 
-        xArray = new double[2 * FFT_WINDOW];
-        yArray = new double[2 * FFT_WINDOW];
+        xArray = new double[FFT_WINDOW_SIZE];
+        yArray = new double[FFT_WINDOW_SIZE];
         Arrays.fill(yArray, 0);
 
 
-       /* startStop.setOnClickListener(new View.OnClickListener(){
-            public void onClick(View v){
-                if (started == true){
-                    started = false;
-                    startStop.setText("Start");
+        // Listener for Window Size Listener
+        seekBarWindowSize.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (progress == 0) {
+                    arrayCounter = 0;
+                    FFT_WINDOW_SIZE = 16;
+                    textWindowSize.setText("FFT Window Size: " + FFT_WINDOW_SIZE);
 
+                } else if (progress == 1) {
+                    arrayCounter = 0;
+                    FFT_WINDOW_SIZE = 32;
+                    textWindowSize.setText("FFT Window Size: " + FFT_WINDOW_SIZE);
+                } else if (progress == 2) {
+                    arrayCounter = 0;
+                    FFT_WINDOW_SIZE = 64;
+                    textWindowSize.setText("FFT Window Size: " + FFT_WINDOW_SIZE);
+                } else if (progress == 3) {
+                    arrayCounter = 0;
+                    FFT_WINDOW_SIZE = 256;
+                    textWindowSize.setText("FFT Window Size: " + FFT_WINDOW_SIZE);
+                } else if (progress == 4) {
+                    arrayCounter = 0;
+                    FFT_WINDOW_SIZE = 512;
+                    textWindowSize.setText("FFT Window Size: " + FFT_WINDOW_SIZE);
+                } else {
+                    arrayCounter = 0;
+                    FFT_WINDOW_SIZE = 1024;
+                    textWindowSize.setText("FFT Window Size: " + FFT_WINDOW_SIZE);
                 }
-                else  {
-                    started = true;
-                    startStop.setText("Stop");
-                }
+
+
+                array = new double[FFT_WINDOW_SIZE];
+                Arrays.fill(array, 0);
+
+                xArray = new double[FFT_WINDOW_SIZE];
+                yArray = new double[FFT_WINDOW_SIZE];
+                Arrays.fill(yArray, 0);
+
             }
-        });*/
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+
+            }
+        });
+
+        // Listener for FFT Sample Rate SeekBar
+        seekBarSampleRate.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                FFT_SAMPLE_RATE = 100 - progress;
+                textSampleRate.setText("FFT Sample Rate: " + FFT_SAMPLE_RATE);
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+
+            }
+        });
+
         mSensorManager.registerListener(this, mSensor, mSensorManager.SENSOR_DELAY_FASTEST);
 
     }
 
     // Code for accelerometer inspired by: https://code.tutsplus.com/tutorials/using-the-accelerometer-on-android--mobile-22125
-
     @Override
     public void onSensorChanged(SensorEvent event) {
         Sensor mySensor = event.sensor;
@@ -105,34 +181,35 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
             curTime = System.currentTimeMillis();
 
-            timeChanged = timeChanged + 2;
+            if ((curTime - lastUpdate) > FFT_SAMPLE_RATE) {
 
-            //Drawing of untransformed acceleration data
-            ourGraph.addPointX(timeChanged, x * SCALE_FACTOR + ourGraph.getHeight() / 2 - 100);
-            ourGraph.addPointY(timeChanged, y * SCALE_FACTOR + ourGraph.getHeight() / 2 - 100);
-            ourGraph.addPointZ(timeChanged, z * SCALE_FACTOR + ourGraph.getHeight() / 2 - 100);
-            ourGraph.addPointM(timeChanged, (float) m * SCALE_FACTOR + ourGraph.getHeight() / 2 - 100);
-            ourGraph.invalidate();
+                lastUpdate = curTime;
+                timeChanged = timeChanged + 1;
 
-            if (arrayCounter < 2 * FFT_WINDOW) {
-                xArray[arrayCounter] = m;
-                arrayCounter = arrayCounter + 1;
-                startStop.setText(""+arrayCounter);
+                //Drawing of untransformed acceleration data
+                ourGraph.addPointX(timeChanged, x * SCALE_FACTOR + ourGraph.getHeight() / 2 - 100);
+                ourGraph.addPointY(timeChanged, y * SCALE_FACTOR + ourGraph.getHeight() / 2 - 100);
+                ourGraph.addPointZ(timeChanged, z * SCALE_FACTOR + ourGraph.getHeight() / 2 - 100);
+                ourGraph.addPointM(timeChanged, (float) m * SCALE_FACTOR + ourGraph.getHeight() / 2 - 100);
+                ourGraph.invalidate();
 
-            } else if (arrayCounter == 2 * FFT_WINDOW) {
-                //float lastX = (float) array[array.length-1];
-                array = fftCalculator(xArray, yArray);
-                ourFFT.setPoints(array);
-                ourFFT.invalidate();
-                arrayCounter = 0;
+                if (arrayCounter < FFT_WINDOW_SIZE) {
+                    xArray[arrayCounter] = m;
+                    arrayCounter = arrayCounter + 1;
+                    startStop.setText("" + arrayCounter);
+
+                } else if (arrayCounter == FFT_WINDOW_SIZE) {
+                    array = fftCalculator(xArray, yArray);
+                    ourFFT.setPoints(array);
+                    ourFFT.invalidate();
+                    arrayCounter = 0;
+                }
             }
-
 
 
         }
 
     }
-
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
@@ -150,12 +227,12 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     }
 
     // inspired by J Wang(Nov 4 '15) https://stackoverflow.com/questions/9272232/fft-library-in-android-sdk)
-    public double[] fftCalculator(double[] x, double[] y){
+    public double[] fftCalculator(double[] x, double[] y) {
         if (x.length != y.length) return null;
         FFT fft = new FFT(x.length);
         fft.fft(x, y);
         double[] fftMag = new double[x.length];
-        for (int i = 1; i<x.length; i++){
+        for (int i = 1; i < x.length; i++) {
             fftMag[i] = Math.sqrt(Math.pow(x[i], 2) + Math.pow(x[i], 2));
         }
         return fftMag;

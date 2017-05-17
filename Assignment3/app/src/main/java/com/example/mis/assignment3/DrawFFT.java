@@ -9,7 +9,7 @@ import android.util.AttributeSet;
 import android.view.View;
 
 /**
- * Created by annika on 16.05.17.
+ *  This class visualizes the FFT transformed magnitude of the accelerometer data on a canvas
  */
 
 public class DrawFFT extends View {
@@ -41,7 +41,6 @@ public class DrawFFT extends View {
     }
 
     public void setPoints (double[] n){
-     //   pathFFT.moveTo(y-1, x);
      for(int i = 0; i<n.length-1; i++ ){
          float v = (float) n[i]+200;
          pathFFT.lineTo(y, v);
