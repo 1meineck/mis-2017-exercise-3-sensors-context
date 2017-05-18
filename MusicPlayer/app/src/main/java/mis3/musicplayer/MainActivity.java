@@ -11,18 +11,13 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.media.MediaPlayer;
-import android.os.Build;
-import android.support.annotation.RequiresApi;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.view.View;
-import android.widget.Button;
+
 import android.widget.TextView;
 import android.widget.Toast;
-
-import java.lang.reflect.Array;
 import java.util.Arrays;
 
 
@@ -31,9 +26,6 @@ import java.util.Arrays;
 public class MainActivity extends AppCompatActivity implements SensorEventListener {
 
     String statusString = "Standing";
-    Button startJogging;
-    Button startCycling;
-    Button stopAll;
     TextView status;
     TextView credits;
 
@@ -50,14 +42,17 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private double[] array;  // array that holds our fft data
 
     private int arrayCounter = 0;
-    private int SCALE_FACTOR = 20;
     private int FFT_WINDOW_SIZE = 64; // initial FFT Window Size
     private int FFT_SAMPLE_RATE = 1; // initial FFT Sample Rate
+    private float CYCLING_MIN = 2;
+    private float CYCLING_MAX = 8;
+    private float JOGGING_MIN = 8;
+    private float JOGGING_MAX =100;
 
-    private float speed;
-    private double threshold;
+    private float speed; // speed in m/s
 
     Context context;
+
     public static final int MY_PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 42;
 
     // Music for Jogging - "Goodbye to Spring" by Josh Woodward. Free download: http://joshwoodward.com/
@@ -82,11 +77,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             @Override
             public void onLocationChanged(Location location) {
                 speed = location.getSpeed();
-                double latitude = location.getLatitude();
-                double longitude = location.getLongitude();
-                credits.setText("" + speed + ", " + latitude + ", " + longitude);
-
-
             }
 
             @Override
@@ -105,6 +95,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             }
         };
 
+        // Everything for the permissions was inspired by:
+        // https://developer.android.com/training/permissions/requesting.html
         if (ContextCompat.checkSelfPermission(this,
                 Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -137,72 +129,9 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         context = this;
 
-        startJogging = (Button) findViewById(R.id.startJogging);
-        startCycling = (Button) findViewById(R.id.startCycling);
-        stopAll = (Button) findViewById(R.id.stopAll);
 
         status = (TextView) findViewById(R.id.status);
         credits = (TextView) findViewById(R.id.credits);
-
-        stopAll.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                statusString = "Standing";
-                status.setText(statusString);
-                credits.setText("");
-                if (mediaPlayer != null) {
-                    mediaPlayer.release();
-                }
-
-            }
-        });
-        startJogging.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (statusString == "Standing") {
-                    statusString = "Jogging";
-                    status.setText(statusString);
-                    credits.setText(creditsJoggingString);
-
-                    mediaPlayer = MediaPlayer.create(context, R.raw.goodbyetospring);
-                    mediaPlayer.setLooping(true);
-                    mediaPlayer.start();
-                } else if (statusString == "Cycling") {
-                    mediaPlayer.release();
-                    statusString = "Jogging";
-                    status.setText(statusString);
-                    credits.setText(creditsJoggingString);
-
-                    mediaPlayer = MediaPlayer.create(context, R.raw.goodbyetospring);
-                    mediaPlayer.setLooping(true);
-                    mediaPlayer.start();
-                }
-            }
-        });
-
-        startCycling.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (statusString == "Standing") {
-                    statusString = "Cycling";
-                    status.setText(statusString);
-                    credits.setText(creditsJoggingString);
-
-                    mediaPlayer = MediaPlayer.create(context, R.raw.go);
-                    mediaPlayer.setLooping(true);
-                    mediaPlayer.start();
-                } else if (statusString == "Jogging") {
-                    mediaPlayer.release();
-                    statusString = "Cycling";
-                    status.setText(statusString);
-                    credits.setText(creditsCyclingString);
-
-                    mediaPlayer = MediaPlayer.create(context, R.raw.go);
-                    mediaPlayer.setLooping(true);
-                    mediaPlayer.start();
-                }
-            }
-        });
 
 
         mSensorManager.registerListener(this, mSensor, mSensorManager.SENSOR_DELAY_FASTEST);
@@ -221,22 +150,17 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                         && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
 
                     Toast.makeText(this, "Location Permission accepted", Toast.LENGTH_SHORT).show();
-                    //ToDo location stuff
+
 
                 } else {
 
                     Toast.makeText(this, "Location Permission denied", Toast.LENGTH_SHORT).show();
 
-
-                    // permission denied, boo! Disable the
-                    // functionality that depends on this permission.
                 }
                 return;
 
             }
 
-            // other 'case' lines to check for other
-            // permissions this app might request
         }
 
     }
@@ -268,61 +192,74 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 } else if (arrayCounter == FFT_WINDOW_SIZE) {
 
                     array = fftCalculator(xArray, yArray);
+
+                    // We decided to use an average of the values in our fft array to compare to our threshold because it is more robust to stray values.
                     double average = calculateArrayAverage(array);
-                    if (average > 1 && average < 4) { //ToDo add speed for cycling
 
-                        if (statusString == "Standing") {
-                            statusString = "Cycling";
+                    //Speed must be smaller than 8m/s for the music player to start playing, to make sure it is only used for jogging or cycling
+                    if (speed < 8) {
+                        // We wanted to add a speed constraint for cycling, however, since we could not test it, we decided to leave it out for now
+                        // Cycling needs a lower threshold than jogging, for the average movement while cycling is lower than when jogging.
+                        // Without the speed constraint, we decided to make them mutually exclusive. This should be adapted, when speed can be tested and it works.
+                        //Cycling:
+                        if (average > CYCLING_MIN && average < CYCLING_MAX) {
+
+                            if (statusString == "Standing") {
+                                statusString = "Cycling";
+                                status.setText(statusString);
+                                credits.setText(creditsJoggingString);
+
+                                mediaPlayer = MediaPlayer.create(context, R.raw.go);
+                                mediaPlayer.setLooping(true);
+                                mediaPlayer.start();
+                            } else if (statusString == "Jogging") {
+                                mediaPlayer.release();
+                                statusString = "Cycling";
+                                status.setText(statusString);
+                                credits.setText(creditsCyclingString);
+
+                                mediaPlayer = MediaPlayer.create(context, R.raw.go);
+                                mediaPlayer.setLooping(true);
+                                mediaPlayer.start();
+                            }
+                            // see above
+                            //Jogging:
+                        } else if (average > JOGGING_MIN && average < JOGGING_MAX) {
+                            if (statusString == "Standing") {
+                                statusString = "Jogging";
+                                status.setText(statusString);
+                                credits.setText(creditsJoggingString);
+
+                                mediaPlayer = MediaPlayer.create(context, R.raw.goodbyetospring);
+                                mediaPlayer.setLooping(true);
+                                mediaPlayer.start();
+                            } else if (statusString == "Cycling") {
+                                mediaPlayer.release();
+                                statusString = "Jogging";
+                                status.setText(statusString);
+                                credits.setText(creditsJoggingString);
+
+                                mediaPlayer = MediaPlayer.create(context, R.raw.goodbyetospring);
+                                mediaPlayer.setLooping(true);
+                                mediaPlayer.start();
+                            }
+                            //Different things than jogging or cycling
+                        } else {
+                            statusString = "Standing";
                             status.setText(statusString);
-                            credits.setText(creditsJoggingString);
+                            credits.setText("");
+                            if (mediaPlayer != null) {
+                                mediaPlayer.release();
+                            }
 
-                            mediaPlayer = MediaPlayer.create(context, R.raw.go);
-                            mediaPlayer.setLooping(true);
-                            mediaPlayer.start();
-                        } else if (statusString == "Jogging") {
-                            mediaPlayer.release();
-                            statusString = "Cycling";
-                            status.setText(statusString);
-                            credits.setText(creditsCyclingString);
-
-                            mediaPlayer = MediaPlayer.create(context, R.raw.go);
-                            mediaPlayer.setLooping(true);
-                            mediaPlayer.start();
                         }
-                    } else if (average > 4) {
-                        if (statusString == "Standing") {
-                            statusString = "Jogging";
-                            status.setText(statusString);
-                            credits.setText(creditsJoggingString);
 
-                            mediaPlayer = MediaPlayer.create(context, R.raw.goodbyetospring);
-                            mediaPlayer.setLooping(true);
-                            mediaPlayer.start();
-                        } else if (statusString == "Cycling") {
-                            mediaPlayer.release();
-                            statusString = "Jogging";
-                            status.setText(statusString);
-                            credits.setText(creditsJoggingString);
 
-                            mediaPlayer = MediaPlayer.create(context, R.raw.goodbyetospring);
-                            mediaPlayer.setLooping(true);
-                            mediaPlayer.start();
-                        }
-                    } else {
-                        statusString = "Standing";
-                        status.setText(statusString);
-                        credits.setText("");
-                        if (mediaPlayer != null) {
-                            mediaPlayer.release();
-                        }
-
+                        Arrays.fill(xArray, 0);
+                        Arrays.fill(array, 0);
+                        Arrays.fill(yArray, 0);
+                        arrayCounter = 0;
                     }
-
-
-                    Arrays.fill(xArray, 0);
-                    Arrays.fill(array, 0);
-                    Arrays.fill(yArray, 0);
-                    arrayCounter = 0;
                 }
             }
 
