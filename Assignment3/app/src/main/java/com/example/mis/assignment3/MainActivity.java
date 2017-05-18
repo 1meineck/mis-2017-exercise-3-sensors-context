@@ -202,6 +202,9 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                     array = fftCalculator(xArray, yArray);
                     ourFFT.setPoints(array);
                     ourFFT.invalidate();
+                    Arrays.fill(xArray, 0);
+                    Arrays.fill(array, 0);
+                    Arrays.fill(yArray, 0);
                     arrayCounter = 0;
                 }
             }
@@ -233,7 +236,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         fft.fft(x, y);
         double[] fftMag = new double[x.length];
         for (int i = 1; i < x.length; i++) {
-            fftMag[i] = Math.sqrt(Math.pow(x[i], 2) + Math.pow(x[i], 2));
+            fftMag[i] = Math.sqrt(Math.pow(x[i], 2) + Math.pow(y[i], 2));
         }
         return fftMag;
     }

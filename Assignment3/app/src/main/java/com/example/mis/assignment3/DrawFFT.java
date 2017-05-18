@@ -36,7 +36,7 @@ public class DrawFFT extends View {
     private void init(Context context) {
         paintFFT.setColor(Color.WHITE);
         paintFFT.setStyle(Paint.Style.STROKE);
-        paintFFT.setStrokeWidth(2);
+        paintFFT.setStrokeWidth(1);
 
     }
 
