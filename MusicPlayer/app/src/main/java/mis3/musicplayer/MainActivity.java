@@ -3,6 +3,7 @@ package mis3.musicplayer;
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -10,14 +11,21 @@ import android.hardware.SensorManager;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.media.AudioManager;
 import android.media.MediaPlayer;
+import android.provider.MediaStore;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 
+import android.widget.ArrayAdapter;
+import android.widget.ListView;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import java.util.ArrayList;
 import java.util.Arrays;
 
 
@@ -28,6 +36,9 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     String statusString = "Standing";
     TextView status;
     TextView credits;
+
+    private MediaPlayer mediaPlayer;
+
 
     private SensorManager mSensorManager;
     private Sensor mSensor;
@@ -63,7 +74,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     // published under Creative Commons 4.0 Attribution
     String creditsCyclingString = "Music - \"Go\" by Josh Woodward. \nl Free download: http://joshwoodward.com/ \nl published under Creative Commons 4.0 Attribution";
 
-    MediaPlayer mediaPlayer;
 
 
     @Override
@@ -293,5 +303,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         double average = sum / (x.length - 1);
         return average;
     }
+
 
 }
